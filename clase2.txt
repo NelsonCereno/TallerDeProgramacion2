@@ -1,0 +1,17 @@
+La tarea la podemos hacer rapido con algoritmos greedy 
+
+En la tarea la idea es que se usen la menor cantidad de colores para colorear todos los grafos
+
+Ejemplo:
+
+50 es el minimo
+120 es mucho
+
+la idea es llegar lo mas cercano al minimo 
+
+
+CREAR CLASE VERTICE CON DIFERENTES ORDENAMIENTOS, GRADO
+
+clase grafo, lectura de archivo de las aristas, en paralelo dejar un grafo de coloreo, donde se les asignaran los colores a los grafos
+
+aplicar cotas para encontrar la cota inferior

@@ -1,0 +1,18 @@
+ir revisando casos de interes para recorrer mediante divide y conquista.
+
+Algoritmo greedy: n cuadrado
+cada vez que se saca un nuevo nodo revisar si se pueden asignar los candidatos de valores.
+
+Algoritmo RLF: n cubo (gana hasta ahora)
+
+Algoritmo DSatur: analizar mediante el grado de saturacion 
+
+Algoritmo Branch and Bound (Ramificacion y poda)
+SE DEBE IMPLEMENTAR ESTE.
+
+OBS:
+Puede convenir buscar conjuntos independientes y asignarle colores 
+(complicado tambien puesto que es NP_Completo).
+
+-Se pueden usar templates que sirve para parametrizar tipos de datos,
+-Se puede usar STL
