@@ -1,8 +1,6 @@
 #include "BranchAndBound.h"
 #include <climits>
 #include <algorithm>
-#include <unordered_map>
-#include <string>
 
 using namespace std;
 
@@ -12,9 +10,10 @@ BranchAndBound::BranchAndBound() {
 }
 
 int BranchAndBound::calculateLowerBound(State *s) {
-
+    // Heurística 1: Número de colores actuales
     int numColors = s->graph.getNumberOfColors();
 
+    // Heurística 2: Grado de saturación (DSatur)
     int maxSaturation = 0;
     for (int vertex : s->uncoloredVertices) {
         set<int> neighborColors;
@@ -25,14 +24,15 @@ int BranchAndBound::calculateLowerBound(State *s) {
         }
         maxSaturation = max(maxSaturation, (int)neighborColors.size());
     }
+
+    // Combinamos las heurísticas para calcular la cota inferior
     return max(numColors, maxSaturation + 1);
 }
 
 int BranchAndBound::selectVertex(State *s) {
-
+    // Seleccionamos el vértice con el mayor grado de saturación (DSatur)
     int selectedVertex = -1;
     int maxSaturation = -1;
-
     for (int vertex : s->uncoloredVertices) {
         set<int> neighborColors;
         for (int neighbor : s->graph.vertexNeighbors[vertex]) {
@@ -49,49 +49,38 @@ int BranchAndBound::selectVertex(State *s) {
     return selectedVertex;
 }
 
-unordered_map<string, int> memo;
-
-string stateToString(State *s) {
-    // Convertir el estado a una cadena única para usar en memoización
-    string stateStr;
-    for (int vertex : s->uncoloredVertices) {
-        stateStr += to_string(vertex) + ",";
-    }
-    return stateStr;
-}
-
 int BranchAndBound::branchAndBound(State *s) {
-
-    string stateStr = stateToString(s);
-
-    if (memo.find(stateStr) != memo.end()) {
-        return memo[stateStr];
-    }
-
+    // Calculamos la cota inferior para el estado actual
     int lb = calculateLowerBound(s);
+
+    // Si la cota inferior es mayor o igual a la mejor solución actual, podar la rama
     if (lb >= lowerBound) {
         return lowerBound;
     }
 
+    // Caso base: si todos los vértices están coloreados
     if (s->isAllColored()) {
         if (best == nullptr || s->graph.getNumberOfColors() < best->graph.getNumberOfColors()) {
             best = s;
-            lowerBound = s->graph.getNumberOfColors();
+            lowerBound = s->graph.getNumberOfColors(); // Actualizamos la cota inferior
         }
         return best->graph.getNumberOfColors();
-        
     } else {
-        int vertex = selectVertex(s);
-        s->incrementColor();
+        // Caso recursivo: seleccionamos un vértice y lo coloreamos
+        int vertex = selectVertex(s); // Seleccionamos el vértice con mayor grado de saturación
+        s->incrementColor(); // Incrementamos el número de colores
         for (int color : s->availableColors) {
             if (s->graph.canColor(vertex, color)) {
                 State *s1 = new State(*s);
                 s1->pushColorSelectVertex(vertex, color);
+
+                // Llamada recursiva al branchAndBound
                 branchAndBound(s1);
+
+                // Liberar memoria del objeto State creado dinámicamente
                 delete s1;
             }
         }
-        memo[stateStr] = lowerBound;
         return lowerBound;
     }
 }
