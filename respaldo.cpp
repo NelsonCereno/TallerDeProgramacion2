@@ -1,28 +1,30 @@
+/*
 #include <iostream>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <set>
+#include <climits>
 
 using namespace std;
 
 class Graph {
     public:
     unordered_map<int, set<int>> vertexNeighbors; // vertex -> neighbors
-    unordered_map<int, int> vertexColor; // vertex -> color
+    unordered_map<int, int>> vertexColor; // vertex -> color
     Graph() {
     }
     // ya que se va a leer de un archivo de texto que
     // dos columnas con vertice - vertice
     Graph(vector<vector<int>> edges) {
-        for (vector<int> edge : edges) {
+        for (vector<int>> edge : edges) {
             vertexNeighbors[edge[0]].insert(edge[1]);
             vertexNeighbors[edge[1]].insert(edge[0]);
         }
     }
     // OJO : esta funcion es cara hay que cambiarla
     int getNumberOfColors() {
-        set<int> colors; // recordar que set almacena entero unicos, si se quiere almacena enteros no unicos utilizar multiset
+        set<int>> colors; // recordar que set almacena entero unicos, si se quiere almacena enteros no unicos utilizar multiset
         for (auto par:vertexColor) {
             colors.insert(par.second);
         }
@@ -55,15 +57,15 @@ class Graph {
 // lista de vertices sin colorear, lista de vertices coloreados, lista de colores disponibles
 class State {
     public:
-    set<int> uncoloredVertices;
-    set<int> coloredVertices;
-    set<int> availableColors;
+    set<int>> uncoloredVertices;
+    set<int>> coloredVertices;
+    set<int>> availableColors;
     Graph graph; // va a ser el grafo semi coloreado durante le desarrolo del algoritmo
     State() {
     }
     State(Graph graph) {
         this->graph = graph;
-        // sacamos todos los vertices ya eue son llaves en el mapa
+        // sacamos todos los vertices ya que son llaves en el mapa
         for (auto const& par : graph.vertexNeighbors) {
             uncoloredVertices.insert(par.first);
         }
@@ -106,62 +108,91 @@ class State {
 
 };
 
-class ColoringOperation {
+class BranchAndBound {
     public:
     State *best; // mejor estado encontrado
-    ColoringOperation() {
-        best = nullptr; // covenimos que nullptr es que no se ha encontrado ningun estado
+    int lowerBound; // cota inferior
+
+    BranchAndBound() {
+        best = nullptr; // convenimos que nullptr es que no se ha encontrado ningun estado
+        lowerBound = INT_MAX; // inicializamos la cota inferior con el valor máximo posible
     }
-    int greedyColoring(State *s){
-        while (!s->isAllColored()) {
-            // seleccionamos un vertice y lo coloreamos
-            int vertex = s->getVertex(); // necesitamos obtener un vértice no coloreado
-            // encuentro el primer color disponible que sea factible (no igual al un color de vecinos)
-            for (int color : s->availableColors) {
-                if (s->graph.canColor(vertex, color)) {
-                    s->pushColorSelectVertex(vertex, color);
-                    break; // ya encontramos un color y actualizamos el estado
+
+    int calculateLowerBound(State *s) {
+        // Heurística 1: Número de colores actuales
+        int numColors = s->graph.getNumberOfColors();
+
+        // Heurística 2: Número de vértices no coloreados
+        int numUncoloredVertices = s->uncoloredVertices.size();
+
+        // Heurística 3: Grado de saturación (DSatur)
+        int maxSaturation = 0;
+        for (int vertex : s->uncoloredVertices) {
+            set<int>> neighborColors;
+            for (int neighbor : s->graph.vertexNeighbors[vertex]) {
+                if (s->graph.vertexColor.find(neighbor) != s->graph.vertexColor.end()) {
+                    neighborColors.insert(s->graph.vertexColor[neighbor]);
                 }
             }
-            // consulto si no se pudo colorear el vertice vertex
-            if (!s->isVertexColored(vertex)) { // entonces debo colorearlo con un nuevo color
-                int c = s->graph.getNumberOfColors();
-                s->pushColorSelectVertex(vertex, c);
-                s->availableColors.insert(c);
-            }
-            s->printColor();
+            maxSaturation = max(maxSaturation, (int)neighborColors.size());
         }
-        best = s; // el mejor estado es el estado actual
-        return s->graph.getNumberOfColors(); // retornamos el numero de colores
+
+        // Combinamos las heurísticas para calcular la cota inferior
+        return max(numColors, maxSaturation + 1);
     }
-    int backtrack(State *s) {
-        // caso base
-        if (s->isAllColored()) { // este estado es una hoja del algortimo
-            if (best == nullptr || 
-                s->graph.getNumberOfColors() < best->graph.getNumberOfColors()) {
+
+    int selectVertex(State *s) {
+        // Seleccionamos el vértice con el mayor grado de saturación (DSatur)
+        int selectedVertex = -1;
+        int maxSaturation = -1;
+        for (int vertex : s->uncoloredVertices) {
+            set<int>> neighborColors;
+            for (int neighbor : s->graph.vertexNeighbors[vertex]) {
+                if (s->graph.vertexColor.find(neighbor) != s->graph.vertexColor.end()) {
+                    neighborColors.insert(s->graph.vertexColor[neighbor]);
+                }
+            }
+            int saturation = neighborColors.size();
+            if (saturation > maxSaturation) {
+                maxSaturation = saturation;
+                selectedVertex = vertex;
+            }
+        }
+        return selectedVertex;
+    }
+
+    int branchAndBound(State *s) {
+        // Calculamos la cota inferior para el estado actual
+        int lb = calculateLowerBound(s);
+
+        // Si la cota inferior es mayor o igual a la mejor solución actual, podar la rama
+        if (lb >= lowerBound) {
+            return lowerBound;
+        }
+
+        // Caso base: si todos los vértices están coloreados
+        if (s->isAllColored()) {
+            if (best == nullptr || s->graph.getNumberOfColors() < best->graph.getNumberOfColors()) {
                 best = s;
+                lowerBound = s->graph.getNumberOfColors(); // Actualizamos la cota inferior
             }
             return best->graph.getNumberOfColors();
-        } else {    
-            // caso recursivo
-            int vertex = s->getVertex(); // se puede porque aun existen vertices sin colorear
-            s->incrementColor(); // incrementamos el numero de colores
-            for(int color : s->availableColors) {
+        } else {
+            // Caso recursivo: seleccionamos un vértice y lo coloreamos
+            int vertex = selectVertex(s); // Seleccionamos el vértice con mayor grado de saturación
+            s->incrementColor(); // Incrementamos el número de colores
+            for (int color : s->availableColors) {
                 if (s->graph.canColor(vertex, color)) {
                     State *s1 = new State(*s);
                     s1->pushColorSelectVertex(vertex, color);
 
-                    // if (condicion relativa a LB) si se cumple -> bactrack sino se salta  
-
-                    backtrack(s1);
+                    // Llamada recursiva al branchAndBound
+                    branchAndBound(s1);
                 }
-
             }
-            return best->graph.getNumberOfColors();
+            return lowerBound;
         }
     }
-
-
 };
 
 int main() {
@@ -178,13 +209,14 @@ int main() {
     graph.printGraph();
     State s(graph);
     s.printColor();
-    ColoringOperation co;
- //   co.greedyColoring(&s);
+    BranchAndBound bb;
+ //   bb.greedyColoring(&s);
 //    cout << "Numero de colores greedy: " << s.graph.getNumberOfColors() << endl;
  //   cout << "Mejor coloreo encontrado: ";
-///    co.best->printColor();
-    int c = co.backtrack(&s);
-    cout << "Numero de colores backtrack : " << c << endl;
-    co.best->printColor();
+///    bb.best->printColor();
+    int c = bb.branchAndBound(&s);
+    cout << "Numero de colores branch and bound : " << c << endl;
+    bb.best->printColor();
     return 0;
 }
+*/
