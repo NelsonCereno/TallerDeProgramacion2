@@ -20,6 +20,7 @@ public:
     bool canColor(int vertex, int color);
     void setColor(int vertex, int color);
     void printGraph();
+    void printVertexColors();
 };
 
 #endif // GRAPH_H

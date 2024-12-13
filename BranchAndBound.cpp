@@ -1,5 +1,6 @@
 #include "BranchAndBound.h"
 #include <climits>
+#include <iostream>
 #include <algorithm>
 #include <unordered_map>
 #include <string>
@@ -29,11 +30,12 @@ int BranchAndBound::calculateLowerBound(State *s) {
 }
 
 int BranchAndBound::selectVertex(State *s) {
-
     int selectedVertex = -1;
     int maxSaturation = -1;
-
     for (int vertex : s->uncoloredVertices) {
+        if (s->isVertexColored(vertex)) {
+            continue; // Saltar vértices ya coloreados
+        }
         set<int> neighborColors;
         for (int neighbor : s->graph.vertexNeighbors[vertex]) {
             if (s->graph.vertexColor.find(neighbor) != s->graph.vertexColor.end()) {
@@ -61,9 +63,7 @@ string stateToString(State *s) {
 }
 
 int BranchAndBound::branchAndBound(State *s) {
-
     string stateStr = stateToString(s);
-
     if (memo.find(stateStr) != memo.end()) {
         return memo[stateStr];
     }
@@ -75,13 +75,15 @@ int BranchAndBound::branchAndBound(State *s) {
 
     if (s->isAllColored()) {
         if (best == nullptr || s->graph.getNumberOfColors() < best->graph.getNumberOfColors()) {
-            best = s;
+            best = new State(*s); // Crear una copia del mejor estado
             lowerBound = s->graph.getNumberOfColors();
         }
         return best->graph.getNumberOfColors();
-        
     } else {
         int vertex = selectVertex(s);
+        if (vertex == -1) {
+            return lowerBound; // No hay vértices sin colorear
+        }
         s->incrementColor();
         for (int color : s->availableColors) {
             if (s->graph.canColor(vertex, color)) {
